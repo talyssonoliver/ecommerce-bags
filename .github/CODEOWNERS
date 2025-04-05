@@ -1,0 +1,18 @@
+# Overall project owners
+* @technical-lead
+
+# Frontend specific ownership
+/app/ @frontend-engineer
+/components/ @frontend-engineer
+/public/ @frontend-engineer
+
+# Backend specific ownership
+/app/api/ @backend-engineer
+/lib/services/ @backend-engineer
+/lib/repositories/ @backend-engineer
+/lib/supabase/ @backend-engineer
+
+# Infrastructure ownership
+/.github/ @technical-lead
+/next.config.js @technical-lead
+/middleware.ts @technical-lead

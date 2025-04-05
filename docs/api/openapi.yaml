@@ -1,0 +1,417 @@
+openapi: 3.1.0
+info:
+  title: Brazilian Artisanal Bags E-commerce API
+  description: API documentation for the Brazilian Artisanal Bags E-commerce platform
+  version: 0.1.0
+  contact:
+    email: backend@artesanato-ecommerce.com
+
+servers:
+  - url: https://artesanato-ecommerce.vercel.app/api
+    description: Production server
+  - url: http://localhost:3000/api
+    description: Development server
+
+tags:
+  - name: products
+    description: Operations related to products
+  - name: cart
+    description: Operations related to shopping cart
+  - name: checkout
+    description: Operations related to checkout process
+
+paths:
+  /products:
+    get:
+      summary: List all products
+      description: Returns a paginated list of products with optional filtering
+      tags:
+        - products
+      parameters:
+        - name: category
+          in: query
+          description: Filter products by category
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            default: 12
+            maximum: 50
+            minimum: 1
+        - name: sort
+          in: query
+          description: Sorting options
+          required: false
+          schema:
+            type: string
+            enum: [price_asc, price_desc, newest, oldest]
+            default: newest
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        description: Total number of products
+                      page:
+                        type: integer
+                        description: Current page number
+                      limit:
+                        type: integer
+                        description: Items per page
+                      pages:
+                        type: integer
+                        description: Total number of pages
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/{id}:
+    get:
+      summary: Get product by ID
+      description: Returns a specific product by its ID
+      tags:
+        - products
+      parameters:
+        - name: id
+          in: path
+          description: Product ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetail'
+        '400':
+          description: Invalid ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /cart:
+    get:
+      summary: Get cart items
+      description: Returns the current shopping cart with product details
+      tags:
+        - cart
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CartItem'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Add items to cart
+      description: Adds or updates items in the shopping cart
+      tags:
+        - cart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CartItemInput'
+      responses:
+        '200':
+          description: Items added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CartItemInput'
+        '400':
+          description: Invalid request or insufficient inventory
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        product_id:
+                          type: string
+                          format: uuid
+                        requested:
+                          type: integer
+                        available:
+                          type: integer
+                        error:
+                          type: string
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /checkout:
+    post:
+      summary: Create checkout session
+      description: Creates a new checkout session and returns the Stripe checkout URL
+      tags:
+        - checkout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutInput'
+      responses:
+        '200':
+          description: Checkout session created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    description: URL to redirect the user to complete the payment
+                  session_id:
+                    type: string
+                    description: Stripe checkout session ID
+                  order_id:
+                    type: string
+                    format: uuid
+                    description: Internal order ID
+        '400':
+          description: Invalid request or cart is empty
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+          format: float
+        inventory_count:
+          type: integer
+        category:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductImage'
+
+    ProductDetail:
+      allOf:
+        - $ref: '#/components/schemas/Product'
+        - type: object
+          properties:
+            images:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductImage'
+
+    ProductImage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        alt_text:
+          type: string
+        is_primary:
+          type: boolean
+
+    CartItem:
+      type: object
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+        product:
+          $ref: '#/components/schemas/Product'
+
+    CartItemInput:
+      type: object
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+      required:
+        - product_id
+        - quantity
+
+    CheckoutInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          minLength: 2
+        phone:
+          type: string
+        shipping_address:
+          type: object
+          properties:
+            line1:
+              type: string
+              minLength: 3
+            line2:
+              type: string
+            city:
+              type: string
+              minLength: 2
+            postal_code:
+              type: string
+              minLength: 4
+            country:
+              type: string
+              minLength: 2
+          required:
+            - line1
+            - city
+            - postal_code
+            - country
+      required:
+        - email
+        - name
+        - shipping_address
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
